@@ -41,9 +41,9 @@ typedef void *lampsmart_ble_t;
 #define LAMPSMART_BLE_CONFIG_DEFAULT()  \
     ((lampsmart_ble_config_t){          \
         .variant = LAMPSMART_VARIANT_3, \
-        .group_id = 0xCAFEBABEU,        \
+        .group_id = 0x1234,             \
         .reversed_channels = false,     \
-        .min_brightness = 8U,           \
+        .min_brightness = 1,            \
         .tx_duration_ms = 800U,         \
     })
 
@@ -117,6 +117,30 @@ esp_err_t lampsmart_ble_turn_on(lampsmart_ble_t light);
  * @return ESP-IDF error code.
  */
 esp_err_t lampsmart_ble_turn_off(lampsmart_ble_t light);
+
+/**
+ * @brief Get the current configuration of an initialized controller.
+ *
+ * @param[in]  light  Initialized controller instance.
+ * @param[out] cfg    Set to the current configuration on success.
+ *
+ * @return
+ *      - ESP_OK on success
+ *      - ESP_ERR_INVALID_ARG if any argument is NULL
+ */
+esp_err_t lampsmart_ble_get_config(lampsmart_ble_t light, lampsmart_ble_config_t *cfg);
+
+/**
+ * @brief Replace the configuration of an already-initialized controller.
+ *
+ * @param[in,out] light Initialized controller instance.
+ * @param[in]     cfg   New configuration to apply.
+ *
+ * @return
+ *      - ESP_OK on success
+ *      - ESP_ERR_INVALID_ARG if any argument is NULL
+ */
+esp_err_t lampsmart_ble_set_config(lampsmart_ble_t light, const lampsmart_ble_config_t *cfg);
 
 /**
  * @brief Set cold and warm white output levels.

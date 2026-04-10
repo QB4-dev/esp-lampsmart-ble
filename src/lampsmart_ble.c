@@ -540,6 +540,28 @@ esp_err_t lampsmart_ble_turn_off(lampsmart_ble_t light)
     return err;
 }
 
+esp_err_t lampsmart_ble_get_config(lampsmart_ble_t light, lampsmart_ble_config_t *cfg)
+{
+    lampsmart_ble_ctx_t *ctx = lampsmart_ctx(light);
+
+    if (ctx == NULL || cfg == NULL)
+        return ESP_ERR_INVALID_ARG;
+
+    *cfg = ctx->cfg;
+    return ESP_OK;
+}
+
+esp_err_t lampsmart_ble_set_config(lampsmart_ble_t light, const lampsmart_ble_config_t *cfg)
+{
+    lampsmart_ble_ctx_t *ctx = lampsmart_ctx(light);
+
+    if (ctx == NULL || cfg == NULL)
+        return ESP_ERR_INVALID_ARG;
+
+    ctx->cfg = *cfg;
+    return ESP_OK;
+}
+
 esp_err_t lampsmart_ble_set_levels(lampsmart_ble_t light, uint8_t cold, uint8_t warm)
 {
     lampsmart_ble_ctx_t *ctx = lampsmart_ctx(light);
