@@ -1,4 +1,4 @@
-# lampsmart_ble (ESP-IDF component)
+# esp-lampsmart_ble (ESP-IDF component)
 
 ESP-IDF component for pairing and controlling LampSmart BLE CCT lights using BLE advertisements.
 
@@ -61,5 +61,5 @@ void app_main(void) {
 - Group addressing is used by this protocol, so multiple lamps in the same group can react together.
 - If your lamp responds with swapped warm/cold channels, set `reversed_channels = true` in the config.
 
-  Thanks to all people from this topic:
-  https://community.home-assistant.io/t/controlling-ble-ceiling-light-with-ha
+Thanks to all people from this topic:
+https://community.home-assistant.io/t/controlling-ble-ceiling-light-with-ha
