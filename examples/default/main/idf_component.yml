@@ -1,0 +1,8 @@
+---
+
+version: 1.0.0
+description: Example 
+dependencies:
+  esp-lampsmart-ble:
+    version: "~1.0.0"
+    override_path: ../../../
