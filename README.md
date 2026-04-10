@@ -6,7 +6,7 @@ ESP-IDF component for pairing and controlling LampSmart BLE CCT lights using BLE
 
 - Pair and unpair command support
 - Turn on and turn off support
-- Cold/warm white level control (0-255 or 0.0-1.0)
+- Cold/warm white level control (0-255)
 - Supports protocol variants: V3, V2, V1A, V1B
 
 ## Add to project
@@ -60,3 +60,6 @@ void app_main(void) {
 - This component sends non-connectable BLE advertisements and does not open a BLE GATT connection.
 - Group addressing is used by this protocol, so multiple lamps in the same group can react together.
 - If your lamp responds with swapped warm/cold channels, set `reversed_channels = true` in the config.
+
+  Thanks to all people from this topic:
+  https://community.home-assistant.io/t/controlling-ble-ceiling-light-with-ha
