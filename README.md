@@ -9,11 +9,24 @@ ESP-IDF component for pairing and controlling LampSmart BLE CCT lights using BLE
 - Cold/warm white level control (0-255)
 - Supports protocol variants: V3, V2, V1A, V1B
 
-## Add to project
+## Installation
 
-1. Copy this component into your ESP-IDF project under `components/lampsmart_ble`.
-2. Enable Bluetooth in your ESP-IDF configuration.
-3. Include the header and initialize the light controller.
+### Using ESP Component Registry
+
+[![Component Registry](https://components.espressif.com/components/qb4-dev/esp-lampsmart-ble/badge.svg)](https://components.espressif.com/components/qb4-dev/esp-lampsmart-ble)
+
+```bash
+idf.py add-dependency "qb4-dev/esp-lampsmart-ble=*"
+```
+
+### Manual Installation
+
+Clone this repository into your project's `components` directory:
+
+```bash
+cd your_project/components
+git clone https://github.com/QB4-dev/esp-lampsmart-ble.git esp-lampsmart-ble
+```
 
 ## ESP32 quick start
 
