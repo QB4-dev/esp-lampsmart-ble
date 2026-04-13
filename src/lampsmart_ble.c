@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if CONFIG_BT_BLE_ENABLED
+
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include "esp_gap_ble_api.h"
@@ -593,3 +595,5 @@ esp_err_t lampsmart_ble_set_levels(lampsmart_ble_t light, uint8_t cold, uint8_t 
 
     return err;
 }
+
+#endif
