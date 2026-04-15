@@ -1,4 +1,4 @@
-version: 1.0.2
+version: 1.0.3
 description: Component for ESP-IDF to control BLE lights
 repository: https://github.com/QB4-dev/esp-lampsmart-ble
 url: https://github.com/QB4-dev/esp-lampsmart-ble
