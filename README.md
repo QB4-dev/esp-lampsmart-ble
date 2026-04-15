@@ -71,6 +71,7 @@ void app_main(void) {
 ## Notes
 
 - This component sends non-connectable BLE advertisements and does not open a BLE GATT connection.
+- BLE commands are queued internally and transmitted asynchronously, so control calls return once the advertisement job is queued.
 - Group addressing is used by this protocol, so multiple lamps in the same group can react together.
 - If your lamp responds with swapped warm/cold channels, set `reversed_channels = true` in the config.
 

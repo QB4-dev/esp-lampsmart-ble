@@ -12,6 +12,7 @@
 #include "esp_random.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
+#include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "lwip/inet.h"
@@ -27,6 +28,9 @@
 
 #define LAMPSMART_DEVICE_TYPE_LAMP 0x0100
 #define LAMPSMART_MAX_PACKET_LEN 31
+#define LAMPSMART_ADV_QUEUE_LEN 4
+#define LAMPSMART_ADV_TASK_STACK_SIZE 4096
+#define LAMPSMART_ADV_TASK_PRIORITY 5
 
 #define BIT_RAW_CFG_DONE BIT0
 #define BIT_ADV_START BIT1
@@ -46,6 +50,12 @@ typedef struct {
     uint8_t             arg1;
     uint8_t             tx_count;
 } lampsmart_packet_cmd_t;
+
+typedef struct {
+    uint8_t  packet[LAMPSMART_MAX_PACKET_LEN];
+    uint8_t  packet_len;
+    uint32_t duration_ms;
+} lampsmart_adv_job_t;
 
 #pragma pack(push, 1)
 typedef union {
@@ -88,7 +98,9 @@ typedef union {
 #pragma pack(pop)
 
 static EventGroupHandle_t s_ble_events;
+static QueueHandle_t      s_adv_queue;
 static SemaphoreHandle_t  s_send_lock;
+static TaskHandle_t       s_adv_task;
 static bool               s_gap_registered;
 static bool               s_ble_ready;
 
@@ -332,46 +344,92 @@ static size_t lampsmart_build_packet(const lampsmart_packet_cmd_t *command, uint
     }
 }
 
+static void lampsmart_adv_task(void *arg)
+{
+    lampsmart_adv_job_t job;
+    EventBits_t         bits;
+    esp_err_t           err;
+
+    (void)arg;
+
+    while (true) {
+        if (xQueueReceive(s_adv_queue, &job, portMAX_DELAY) != pdTRUE)
+            continue;
+
+        if (!s_ble_ready) {
+            ESP_LOGE(LAMPSMART_TAG, "advertisement job failed: %s",
+                     esp_err_to_name(ESP_ERR_INVALID_STATE));
+            continue;
+        }
+
+        xEventGroupClearBits(s_ble_events, BIT_RAW_CFG_DONE | BIT_ADV_START | BIT_ADV_STOP);
+
+        err = esp_ble_gap_config_adv_data_raw(job.packet, (uint32_t)job.packet_len);
+        if (err != ESP_OK) {
+            ESP_LOGE(LAMPSMART_TAG, "esp_ble_gap_config_adv_data_raw failed: %s",
+                     esp_err_to_name(err));
+            continue;
+        }
+
+        bits =
+            xEventGroupWaitBits(s_ble_events, BIT_RAW_CFG_DONE, pdTRUE, pdTRUE, pdMS_TO_TICKS(500));
+        if ((bits & BIT_RAW_CFG_DONE) == 0) {
+            ESP_LOGE(LAMPSMART_TAG, "advertisement job failed: %s",
+                     esp_err_to_name(ESP_ERR_TIMEOUT));
+            continue;
+        }
+
+        err = esp_ble_gap_start_advertising(&s_adv_params);
+        if (err != ESP_OK) {
+            ESP_LOGE(LAMPSMART_TAG, "esp_ble_gap_start_advertising failed: %s",
+                     esp_err_to_name(err));
+            continue;
+        }
+
+        bits = xEventGroupWaitBits(s_ble_events, BIT_ADV_START, pdTRUE, pdTRUE, pdMS_TO_TICKS(500));
+        if ((bits & BIT_ADV_START) == 0) {
+            ESP_LOGE(LAMPSMART_TAG, "advertisement job failed: %s",
+                     esp_err_to_name(ESP_ERR_TIMEOUT));
+            continue;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(job.duration_ms));
+
+        err = esp_ble_gap_stop_advertising();
+        if (err != ESP_OK) {
+            ESP_LOGE(LAMPSMART_TAG, "esp_ble_gap_stop_advertising failed: %s",
+                     esp_err_to_name(err));
+            continue;
+        }
+
+        bits = xEventGroupWaitBits(s_ble_events, BIT_ADV_STOP, pdTRUE, pdTRUE, pdMS_TO_TICKS(500));
+        if ((bits & BIT_ADV_STOP) == 0)
+            ESP_LOGE(LAMPSMART_TAG, "advertisement job failed: %s",
+                     esp_err_to_name(ESP_ERR_TIMEOUT));
+    }
+}
+
 static esp_err_t lampsmart_send_adv_packet(uint8_t *packet, size_t packet_len, uint32_t duration_ms)
 {
-    EventBits_t bits;
-    esp_err_t   err;
+    lampsmart_adv_job_t job;
 
     if (!s_ble_ready)
         return ESP_ERR_INVALID_STATE;
 
-    xEventGroupClearBits(s_ble_events, BIT_RAW_CFG_DONE | BIT_ADV_START | BIT_ADV_STOP);
+    if (packet == NULL || packet_len == 0U || packet_len > LAMPSMART_MAX_PACKET_LEN)
+        return ESP_ERR_INVALID_ARG;
 
-    err = esp_ble_gap_config_adv_data_raw(packet, (uint32_t)packet_len);
-    if (err != ESP_OK) {
-        ESP_LOGE(LAMPSMART_TAG, "esp_ble_gap_config_adv_data_raw failed: %s", esp_err_to_name(err));
-        return err;
-    }
+    if (s_adv_queue == NULL)
+        return ESP_ERR_INVALID_STATE;
 
-    bits = xEventGroupWaitBits(s_ble_events, BIT_RAW_CFG_DONE, pdTRUE, pdTRUE, pdMS_TO_TICKS(500));
-    if ((bits & BIT_RAW_CFG_DONE) == 0) {
+    memset(&job, 0, sizeof(job));
+    memcpy(job.packet, packet, packet_len);
+    job.packet_len = (uint8_t)packet_len;
+    job.duration_ms = duration_ms;
+
+    if (xQueueSend(s_adv_queue, &job, 0) != pdTRUE)
         return ESP_ERR_TIMEOUT;
-    }
 
-    err = esp_ble_gap_start_advertising(&s_adv_params);
-    if (err != ESP_OK) {
-        ESP_LOGE(LAMPSMART_TAG, "esp_ble_gap_start_advertising failed: %s", esp_err_to_name(err));
-        return err;
-    }
-
-    bits = xEventGroupWaitBits(s_ble_events, BIT_ADV_START, pdTRUE, pdTRUE, pdMS_TO_TICKS(500));
-    if ((bits & BIT_ADV_START) == 0) {
-        return ESP_ERR_TIMEOUT;
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(duration_ms));
-
-    err = esp_ble_gap_stop_advertising();
-    if (err != ESP_OK) {
-        ESP_LOGE(LAMPSMART_TAG, "esp_ble_gap_stop_advertising failed: %s", esp_err_to_name(err));
-        return err;
-    }
-    xEventGroupWaitBits(s_ble_events, BIT_ADV_STOP, pdTRUE, pdTRUE, pdMS_TO_TICKS(500));
     return ESP_OK;
 }
 
@@ -441,6 +499,12 @@ esp_err_t lampsmart_ble_stack_init(void)
             return ESP_ERR_NO_MEM;
     }
 
+    if (s_adv_queue == NULL) {
+        s_adv_queue = xQueueCreate(LAMPSMART_ADV_QUEUE_LEN, sizeof(lampsmart_adv_job_t));
+        if (s_adv_queue == NULL)
+            return ESP_ERR_NO_MEM;
+    }
+
     err = esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
     if (err != ESP_OK && err != ESP_ERR_INVALID_STATE)
         return err;
@@ -468,6 +532,14 @@ esp_err_t lampsmart_ble_stack_init(void)
             return err;
 
         s_gap_registered = true;
+    }
+
+    if (s_adv_task == NULL) {
+        BaseType_t task_rc = xTaskCreate(lampsmart_adv_task, "lampsmart_adv",
+                                         LAMPSMART_ADV_TASK_STACK_SIZE, NULL,
+                                         LAMPSMART_ADV_TASK_PRIORITY, &s_adv_task);
+        if (task_rc != pdPASS)
+            return ESP_ERR_NO_MEM;
     }
 
     s_ble_ready = true;

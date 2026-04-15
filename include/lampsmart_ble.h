@@ -27,10 +27,10 @@ typedef struct {
     uint32_t            group_id;          /*!< Shared LampSmart group identifier */
     bool                reversed_channels; /*!< Swap cold and warm channels in outgoing commands */
     uint8_t             min_brightness;    /*!< Minimum non-zero brightness*/
-    uint32_t            tx_duration_ms;    /*!< BLE advertisement duration  for each command */
+    uint32_t            tx_duration_ms;    /*!< BLE advertisement duration  */
 } lampsmart_ble_config_t;
 
-/**
+/** 
  * @brief Opaque handle for one LampSmart light controller.
  *
  * Allocate with lampsmart_ble_init(); free with lampsmart_ble_deinit().
@@ -83,38 +83,50 @@ esp_err_t lampsmart_ble_init(lampsmart_ble_t *out_light, const lampsmart_ble_con
 void lampsmart_ble_deinit(lampsmart_ble_t light);
 
 /**
- * @brief Send a LampSmart pair command.
+ * @brief Queue a LampSmart pair command for BLE transmission.
  *
  * @param[in,out] light Initialized controller instance.
  *
- * @return ESP-IDF error code.
+ * @return
+ *      - ESP_OK if the command was queued
+ *      - ESP_ERR_TIMEOUT if the internal transmit queue is full
+ *      - Other ESP-IDF error codes for invalid state/arguments
  */
 esp_err_t lampsmart_ble_pair(lampsmart_ble_t light);
 
 /**
- * @brief Send a LampSmart unpair command.
+ * @brief Queue a LampSmart unpair command for BLE transmission.
  *
  * @param[in,out] light Initialized controller instance.
  *
- * @return ESP-IDF error code.
+ * @return
+ *      - ESP_OK if the command was queued
+ *      - ESP_ERR_TIMEOUT if the internal transmit queue is full
+ *      - Other ESP-IDF error codes for invalid state/arguments
  */
 esp_err_t lampsmart_ble_unpair(lampsmart_ble_t light);
 
 /**
- * @brief Send a LampSmart light-on command.
+ * @brief Queue a LampSmart light-on command for BLE transmission.
  *
  * @param[in,out] light Initialized controller instance.
  *
- * @return ESP-IDF error code.
+ * @return
+ *      - ESP_OK if the command was queued
+ *      - ESP_ERR_TIMEOUT if the internal transmit queue is full
+ *      - Other ESP-IDF error codes for invalid state/arguments
  */
 esp_err_t lampsmart_ble_turn_on(lampsmart_ble_t light);
 
 /**
- * @brief Send a LampSmart light-off command.
+ * @brief Queue a LampSmart light-off command for BLE transmission.
  *
  * @param[in,out] light Initialized controller instance.
  *
- * @return ESP-IDF error code.
+ * @return
+ *      - ESP_OK if the command was queued
+ *      - ESP_ERR_TIMEOUT if the internal transmit queue is full
+ *      - Other ESP-IDF error codes for invalid state/arguments
  */
 esp_err_t lampsmart_ble_turn_off(lampsmart_ble_t light);
 
@@ -146,14 +158,17 @@ esp_err_t lampsmart_ble_set_config(lampsmart_ble_t light, const lampsmart_ble_co
  * @brief Set cold and warm white output levels.
  *
  * A `(0, 0)` level request is converted to an off command. For non-zero values,
- * the component automatically sends an on command first when the cached state
+ * the component automatically queues an on command first when the cached state
  * is off.
  *
  * @param[in,out] light Initialized controller instance.
  * @param[in] cold Cold white level in range 0..255.
  * @param[in] warm Warm white level in range 0..255.
  *
- * @return ESP-IDF error code.
+ * @return
+ *      - ESP_OK if the required command or commands were queued
+ *      - ESP_ERR_TIMEOUT if the internal transmit queue is full
+ *      - Other ESP-IDF error codes for invalid state/arguments
  */
 esp_err_t lampsmart_ble_set_levels(lampsmart_ble_t light, uint8_t cold, uint8_t warm);
 
