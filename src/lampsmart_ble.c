@@ -535,7 +535,7 @@ esp_err_t lampsmart_ble_stack_init(void)
     }
 
     if (s_adv_task == NULL) {
-        BaseType_t task_rc = xTaskCreate(lampsmart_adv_task, "lampsmart_adv",
+        BaseType_t task_rc = xTaskCreate(lampsmart_adv_task, "ble_adv",
                                          LAMPSMART_ADV_TASK_STACK_SIZE, NULL,
                                          LAMPSMART_ADV_TASK_PRIORITY, &s_adv_task);
         if (task_rc != pdPASS)
